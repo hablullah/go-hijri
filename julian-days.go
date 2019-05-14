@@ -7,6 +7,9 @@ import (
 )
 
 func dateToJD(date time.Time) float64 {
+	// Convert to UTC
+	date = date.UTC()
+
 	// Prepare variables for calculating
 	Y := int64(date.Year())
 	M := int64(date.Month())
@@ -21,8 +24,8 @@ func dateToJD(date time.Time) float64 {
 	}
 
 	// If date is in blank days, stop
-	endOfJulian := time.Date(1582, 10, 4, 23, 59, 59, 0, date.Location())
-	startOfGregorian := time.Date(1582, 10, 15, 0, 0, 0, 0, date.Location())
+	endOfJulian := time.Date(1582, 10, 4, 23, 59, 59, 0, time.UTC)
+	startOfGregorian := time.Date(1582, 10, 15, 0, 0, 0, 0, time.UTC)
 	if date.After(endOfJulian) && date.Before(startOfGregorian) {
 		return 0
 	}
@@ -129,5 +132,5 @@ func jdToDate(jd float64) time.Time {
 	intSec := int(sec.IntPart())
 
 	return time.Date(intYear, time.Month(intMonth), intDay,
-		intHour, intMin, intSec, 0, time.Local)
+		intHour, intMin, intSec, 0, time.UTC)
 }
