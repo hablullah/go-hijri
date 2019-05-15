@@ -10,14 +10,27 @@ func ToGregorian(year, month, day int) time.Time {
 	// Calculate N days until the end of last year
 	Y := year - 1
 	yearBy30 := Y / 30
-	leftoverYear := Y % 30
+	leftoverYear := Y - yearBy30*30
+	isNegativeYear := year < 0
 
+	// If the year is negative, for easir calculation, make leftover positive for now
+	if isNegativeYear {
+		leftoverYear *= -1
+	}
+
+	// Count leap days in the leftover years
 	nLeapDays := 0
 	for i := 1; i <= leftoverYear; i++ {
 		switch i {
 		case 2, 5, 7, 10, 13, 16, 18, 21, 24, 26, 29:
 			nLeapDays++
 		}
+	}
+
+	// If it was negative, put back the minus
+	if isNegativeYear {
+		leftoverYear *= -1
+		nLeapDays *= -1
 	}
 
 	nDaysLastYear := yearBy30*10631 + leftoverYear*354 + nLeapDays
@@ -42,6 +55,9 @@ func ToGregorian(year, month, day int) time.Time {
 
 // ToHijri converts Gregorian date to Hijri.
 func ToHijri(date time.Time) (int, int, int) {
+	// We only need the date, so remove the time
+	date = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+
 	// Calculate Julian Day
 	jd := dateToJD(date)
 
@@ -51,7 +67,12 @@ func ToHijri(date time.Time) (int, int, int) {
 
 	// Split days per 30 years, for easier calculation
 	yearsBy30 := int(math.Floor(flNDays / 10631.0))
-	leftoverDays := nDays % 10631
+
+	// Get the leftover days
+	leftoverDays := nDays - yearsBy30*10631
+	if leftoverDays < 0 {
+		leftoverDays *= -1
+	}
 
 	// From leftover days, calculate year
 	var isLeapYear bool
