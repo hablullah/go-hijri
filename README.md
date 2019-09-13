@@ -30,7 +30,7 @@ func main() {
 	fmt.Printf("%s AD = %04d-%02d-%02d H (umm al-qura)\n", newYear.Format("2006-01-02"), y, m, d)
 
 	// 1 Ramadhan 1440 to Gregorian
-	ramadhan := hijri.ToGregorian(1440, 9, 1)
+	ramadhan := hijri.FromHijri(1440, 9, 1)
 	fmt.Printf("1440-09-01 H = %s AD\n", ramadhan.Format("2006-01-02"))
 }
 
