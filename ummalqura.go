@@ -5,126 +5,10 @@ import (
 	"time"
 )
 
-// ToGregorian converts Hijri date to Gregorian date.
-func ToGregorian(year, month, day int) time.Time {
-	// Calculate N days until the end of last year
-	Y := year - 1
-	yearBy30 := Y / 30
-	leftoverYear := Y - yearBy30*30
-	isNegativeYear := year < 0
-
-	// If the year is negative, for easir calculation, make leftover positive for now
-	if isNegativeYear {
-		leftoverYear *= -1
-	}
-
-	// Count leap days in the leftover years
-	nLeapDays := 0
-	for i := 1; i <= leftoverYear; i++ {
-		switch i {
-		case 2, 5, 7, 10, 13, 16, 18, 21, 24, 26, 29:
-			nLeapDays++
-		}
-	}
-
-	// If it was negative, put back the minus
-	if isNegativeYear {
-		leftoverYear *= -1
-		nLeapDays *= -1
-	}
-
-	nDaysLastYear := yearBy30*10631 + leftoverYear*354 + nLeapDays
-
-	// Calculate N days in this year, until the end of last month
-	M := month - 1
-	nDaysLastMonth := 0
-	for i := 1; i <= M; i++ {
-		if i%2 == 0 {
-			nDaysLastMonth += 29
-		} else {
-			nDaysLastMonth += 30
-		}
-	}
-
-	// Calculate Julian Days since 1 Muharram 1H
-	nDays := nDaysLastYear + nDaysLastMonth + day
-	jd := 1948438.5 + float64(nDays)
-
-	return jdToDate(jd)
-}
-
-// ToHijri converts Gregorian date to standard Hijri date.
-func ToHijri(date time.Time) (int, int, int) {
-	// We only need the date, so we just set the time to noon
-	date = time.Date(date.Year(), date.Month(), date.Day(), 12, 0, 0, 0, time.UTC)
-
-	// Calculate Julian Day
-	jd := dateToJD(date)
-
-	// Get number of days since 1 Muharram 1H
-	flNDays := math.Floor(jd - 1948438.5)
-	nDays := int(flNDays)
-
-	// Split days per 30 years, for easier calculation
-	yearsBy30 := int(math.Floor(flNDays / 10631.0))
-
-	// Get the leftover days
-	leftoverDays := nDays - yearsBy30*10631
-	if leftoverDays < 0 {
-		leftoverDays *= -1
-	}
-
-	// From leftover days, calculate year
-	var isLeapYear bool
-	year := yearsBy30 * 30
-
-	for i := 1; ; i++ {
-		year++
-		isLeapYear = false
-
-		daysInYear := 354
-		switch i {
-		case 2, 5, 7, 10, 13, 16, 18, 21, 24, 26, 29:
-			isLeapYear = true
-			daysInYear = 355
-		}
-
-		leftoverDays -= daysInYear
-		if leftoverDays <= 0 {
-			leftoverDays += daysInYear
-			break
-		}
-	}
-
-	// From leftover days, calculate month and day
-	day := 0
-	month := 0
-
-	for i := 1; ; i++ {
-		month++
-		daysInMonth := 29 + i%2
-		if isLeapYear && month == 12 {
-			daysInMonth = 30
-		}
-
-		leftoverDays -= daysInMonth
-		if leftoverDays <= 0 {
-			day = leftoverDays + daysInMonth
-			break
-		}
-	}
-
-	return year, month, day
-}
-
 // ToUmmAlQura converts Gregorian date to Umm al-Qura date.
 // Ported from Javascript code in https://www.staff.science.uu.nl/~gent0113/islam/ummalqura_converter.htm.
 // The date must be between 14 March 1937 and 16 November 2077.
 func ToUmmAlQura(date time.Time) (int, int, int, int) {
-	// Get the timezone
-	_, offset := date.Zone()
-	timezone := offset / 3600
-
 	// We only need the date, so we just set the time to noon
 	date = time.Date(
 		date.Year(),
@@ -133,21 +17,9 @@ func ToUmmAlQura(date time.Time) (int, int, int, int) {
 		12, 0, 0, 0,
 		time.UTC)
 
-	// Calculate Julian Date (JD)
+	// Calculate Julian Date (JD) and its Chronological Number (CJDN)
 	jd := dateToJD(date)
-
-	// From JD, calculate Chronological Julian Date (CJD)
-	// which is JD except it counted from midnight (24:00) instead of noon (12:00).
-	// It also uses local time instead of UTC. The function for converting is
-	// CJD = JD + 0.5 + TZ.
-	tz := float64(timezone) / 24
-	cjd := jd + 0.5 + tz
-
-	// From CJD, we calculate Chronological Julian Date Number (CJDN)
-	// which is the number of whole days since midnight local time at the
-	// beginning of January 1st. If you confused, the main word is *whole days*,
-	// so we just need to floor the value of CJD.
-	cjdn := int(cjd)
+	cjdn := int(jd)
 
 	// From CJDN, we calculate Modified Chronological Julian Date Number (MCJDN).
 	// MCJDN is a modification of CJDN that used to simplify the notation.
@@ -174,6 +46,21 @@ func ToUmmAlQura(date time.Time) (int, int, int, int) {
 	weekday := (((cjdn + 1%7) + 7) % 7) + 1
 
 	return year, month, day, weekday
+}
+
+// FromUmmAlQura converts Umm al-Qura date to Gregorian date.
+func FromUmmAlQura(year, month, day int) time.Time {
+	// Get lunation index
+	ii := year - 1
+	iln := month + 12*ii
+	lunationIdx := iln - 16260
+
+	// Get the Julian Date
+	mcjdn := day - 1 + ummalQuraLunationMCJDN[lunationIdx-1]
+	cjdn := mcjdn + 2400000
+	jd := float64(cjdn) - 0.5
+
+	return jdToDate(jd)
 }
 
 var ummalQuraLunationMCJDN = []int{28607, 28636, 28665, 28695, 28724, 28754, 28783, 28813, 28843, 28872, 28901, 28931, 28960, 28990, 29019, 29049, 29078, 29108, 29137, 29167,
