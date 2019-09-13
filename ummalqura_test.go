@@ -74,3 +74,27 @@ func TestFromUmmAlQura(t *testing.T) {
 		}
 	}
 }
+
+func TestFromToUmmAlQura(t *testing.T) {
+	date := time.Date(1990, 1, 1, 0, 0, 0, 0, time.Local)
+	for date.Year() < 2031 {
+		// Convert date to Umm al-Qura hijri
+		hYear, hMonth, hDay, _ := hijri.ToUmmAlQura(date)
+
+		// Convert back Umm al-Qura to Gregorian
+		gDate := hijri.FromUmmAlQura(hYear, hMonth, hDay)
+
+		// Compare original and new gregorian
+		strHijri := fmt.Sprintf("%04d-%02d-%02d", hYear, hMonth, hDay)
+		strOriginal := date.Format("2006-01-02")
+		strGregorian := gDate.Format("2006-01-02")
+
+		if strOriginal != strGregorian {
+			t.Errorf("%s: hijri %s converted back %s\n",
+				strOriginal, strHijri, strGregorian)
+		}
+
+		// Increase date
+		date = date.AddDate(0, 0, 1)
+	}
+}
