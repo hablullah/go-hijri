@@ -1,5 +1,6 @@
 # Go-Hijri
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/RadhiFadlillah/go-hijri)](https://goreportcard.com/report/github.com/RadhiFadlillah/go-hijri)
 [![GoDoc](https://godoc.org/github.com/RadhiFadlillah/go-hijri?status.png)](https://godoc.org/github.com/RadhiFadlillah/go-hijri)
 
 Go-Hijri is a Go package for converting Gregorian date to Hijrian date and vice-versa. There are two supported Hijrian calendar :
