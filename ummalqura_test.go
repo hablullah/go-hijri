@@ -14,6 +14,11 @@ import (
 
 var ummAlQuraTests []comparisonTest
 
+type comparisonTest struct {
+	Gregorian string
+	Hijri     string
+}
+
 func init() {
 	// Open test file
 	f, err := os.Open("test/ummalqura.csv")

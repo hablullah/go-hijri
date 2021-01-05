@@ -1,33 +1,34 @@
 package hijri
 
 import (
+	"errors"
 	"time"
 
 	dec "github.com/shopspring/decimal"
 )
 
-func dateToJD(date time.Time) float64 {
+func timeToJulianDays(dt time.Time) (float64, error) {
 	// Convert to UTC
-	date = date.UTC()
+	dt = dt.UTC()
 
 	// Prepare variables for calculating
-	Y := int64(date.Year())
-	M := int64(date.Month())
-	D := int64(date.Day())
-	H := int64(date.Hour())
-	m := int64(date.Minute())
-	s := int64(date.Second())
+	Y := int64(dt.Year())
+	M := int64(dt.Month())
+	D := int64(dt.Day())
+	H := int64(dt.Hour())
+	m := int64(dt.Minute())
+	s := int64(dt.Second())
 
 	// If year is before 4713 B.C, stop
 	if Y < -4712 {
-		return 0
+		return 0, errors.New("year is before Julian calendar")
 	}
 
 	// If date is in blank days, stop
 	endOfJulian := time.Date(1582, 10, 4, 23, 59, 59, 0, time.UTC)
 	startOfGregorian := time.Date(1582, 10, 15, 0, 0, 0, 0, time.UTC)
-	if date.After(endOfJulian) && date.Before(startOfGregorian) {
-		return 0
+	if dt.After(endOfJulian) && dt.Before(startOfGregorian) {
+		return 0, errors.New("date is within blank days")
 	}
 
 	// If month <= 2, change year and month
@@ -38,7 +39,7 @@ func dateToJD(date time.Time) float64 {
 
 	// Check whether date is gregorian or julian
 	constant := dec.Zero
-	if date.After(endOfJulian) {
+	if dt.After(endOfJulian) {
 		temp := dec.New(Y, -2).Floor()
 		constant = dec.New(2, 0).
 			Add(temp.Div(dec.New(4, 0)).Floor()).
@@ -66,10 +67,10 @@ func dateToJD(date time.Time) float64 {
 		Add(timeToDays).
 		Float64()
 
-	return julianDay
+	return julianDay, nil
 }
 
-func jdToDate(jd float64) time.Time {
+func julianDaysToTime(jd float64) time.Time {
 	// Prepare variables for calculating
 	jd1 := dec.NewFromFloat(jd).Add(dec.NewFromFloat(0.5))
 	z := jd1.Floor()

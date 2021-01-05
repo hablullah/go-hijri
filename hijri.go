@@ -1,118 +1,184 @@
+// Hijri or  Islamic calendar is a lunar calendar with a shorter year than ISO. Year 1
+// in the Islamic calendar began on July 16, 622 CE (Julian), thus Islamic years do not
+// begin at the same time as Julian years. This chronology is not proleptic, as it does
+// not allow dates before the first Islamic year.
+//
+// There are two basic forms of the Islamic calendar, the tabular and the observed. The
+// observed form cannot easily be used by computers as it relies on human observation of
+// the new moon. The tabular calendar, implemented here, is an arithmetical approximation
+// of the observed form that follows relatively simple rules.
+//
+// The tabular form of the calendar defines 12 months of alternately 30 and 29 days. The
+// last month is extended to 30 days in a leap year. Leap years occur according to a 30
+// year cycle.
 package hijri
 
 import (
-	"math"
+	"errors"
 	"time"
 )
 
-// ToHijri converts Gregorian date to standard Hijri date.
-func ToHijri(date time.Time) (int, int, int) {
-	// We only need the date, so we just set the time to noon
-	date = time.Date(date.Year(), date.Month(), date.Day(), 12, 0, 0, 0, time.UTC)
+// LeapYearsPattern is patterns of leap years in the 30 year cycle.
+type LeapYearsPattern uint8
 
-	// Calculate Julian Day
-	jd := dateToJD(date)
+const (
+	// Default is the most commonly used leap years pattern. In this pattern, leap year happened
+	// on years 2, 5, 7, 10, 13, 16, 18, 21, 24, 26 & 29.
+	Default LeapYearsPattern = iota
 
-	// Get number of days since 1 Muharram 1H
-	flNDays := math.Floor(jd - 1948438.5)
-	nDays := int(flNDays)
+	// Base15 is leap years pattern that used by Microsoft, and they named it as "Kuwaiti algorithm".
+	// In this pattern, leap year happened on years 2, 5, 7, 10, 13, 15, 18, 21, 24, 26 & 29.
+	Base15
 
-	// Split days per 30 years, for easier calculation
-	yearsBy30 := int(math.Floor(flNDays / 10631.0))
+	// Fattimid is leap years pattern that used in Fattimid empire. In this pattern, leap year
+	// happened on years 2, 5, 8, 10, 13, 16, 19, 21, 24, 27 & 29.
+	Fattimid
 
-	// Get the leftover days
-	leftoverDays := nDays - yearsBy30*10631
-	if leftoverDays < 0 {
-		leftoverDays *= -1
+	// HabashAlHasib is leap years pattern that created using research from Habash al-Hasib,
+	// an astronomer from Abbasid empire (766-869 in Iraq). In this pattern, leap year happened on
+	// years 2, 5, 8, 11, 13, 16, 19, 21, 24, 27 & 30.
+	HabashAlHasib
+)
+
+// HijriDate is date that uses Islamic calendar system.
+type HijriDate struct {
+	Day     int64
+	Month   int64
+	Year    int64
+	Pattern LeapYearsPattern
+}
+
+// ConvertDate converts normal Gregorian date to Hijri date. Since Hijri calendar is not proleptic
+// (does not allow dates before its first date), any date before 16 July 622 CE (1 Muharram 1 H)
+// will make this method throws error.
+func ConvertDate(date time.Time, leapPattern LeapYearsPattern) (HijriDate, error) {
+	// Convert date to UTC and strip times from the date
+	date = date.UTC()
+	date = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+
+	// Calculate Julian Days
+	julianDays, err := timeToJulianDays(date)
+	if err != nil {
+		return HijriDate{}, err
 	}
 
-	// From leftover days, calculate year
-	var isLeapYear bool
-	year := yearsBy30 * 30
+	// Get days since 1 Muharram 1
+	islamicDays := int64(julianDays - 1948438.5)
+	if islamicDays < 0 {
+		return HijriDate{}, errors.New("date is before hijri calendar started")
+	}
 
-	for i := 1; ; i++ {
-		year++
-		isLeapYear = false
+	// Check how many 30 years cycles to reach this day
+	nCycles := islamicDays / 10631
 
-		daysInYear := 354
-		switch i {
-		case 2, 5, 7, 10, 13, 16, 18, 21, 24, 26, 29:
-			isLeapYear = true
-			daysInYear = 355
-		}
+	// Calculate leftover years outside 30 years cycle
+	leftoverDays := islamicDays % 10631
+	leftoverYears := leftoverDays / 354
 
-		leftoverDays -= daysInYear
-		if leftoverDays <= 0 {
-			leftoverDays += daysInYear
-			break
+	// Calculate the leftover days after years substracted
+	leftoverDays = leftoverDays % 354
+
+	// Adjust leftover days based on leap years that happened within leftover years
+	for year := int64(1); year <= leftoverYears; year++ {
+		if isLeapYear(year, leapPattern) {
+			leftoverDays--
 		}
 	}
 
-	// From leftover days, calculate month and day
-	day := 0
-	month := 0
+	// Calculate final hijri year
+	hijriYear := nCycles*30 + leftoverYears
+	if leftoverDays > 0 {
+		hijriYear++
+	} else {
+		leftoverDays += 354
+		if isLeapYear(hijriYear, leapPattern) {
+			leftoverDays++
+		}
+	}
 
-	for i := 1; ; i++ {
-		month++
-		daysInMonth := 29 + i%2
-		if isLeapYear && month == 12 {
+	// Calculate final hijri month and day
+	var hijriDay, hijriMonth int64
+	inLeapYear := isLeapYear(hijriYear, leapPattern)
+
+	for month := int64(1); month <= 12; month++ {
+		hijriMonth = month
+		daysInMonth := int64(29 + month%2)
+		if inLeapYear && month == 12 {
 			daysInMonth = 30
 		}
 
 		leftoverDays -= daysInMonth
 		if leftoverDays <= 0 {
-			day = leftoverDays + daysInMonth
+			hijriDay = leftoverDays + daysInMonth
 			break
 		}
 	}
 
-	return year, month, day
+	return HijriDate{
+		Day:     hijriDay,
+		Month:   hijriMonth,
+		Year:    hijriYear,
+		Pattern: leapPattern,
+	}, nil
 }
 
-// FromHijri converts standard Hijri date to Gregorian date.
-func FromHijri(year, month, day int) time.Time {
-	// Calculate N days until the end of last year
-	Y := year - 1
-	yearBy30 := Y / 30
-	leftoverYear := Y - yearBy30*30
-	isNegativeYear := year < 0
+// ToGregorian convert Hijri date to Gregorian date using Golang standard time.
+func (h HijriDate) ToGregorian() time.Time {
+	// Calculate the passed days from the passed hijri years
+	passedYear := h.Year - 1
+	nCycles := passedYear / 30
+	leftoverYears := passedYear % 30
+	passedDays := nCycles*10631 + leftoverYears*354
 
-	// If the year is negative, for easir calculation, make leftover positive for now
-	if isNegativeYear {
-		leftoverYear *= -1
+	// Consider leap years to the count of passed days
+	for year := int64(1); year <= leftoverYears; year++ {
+		if isLeapYear(year, h.Pattern) {
+			passedDays++
+		}
 	}
 
-	// Count leap days in the leftover years
-	nLeapDays := 0
-	for i := 1; i <= leftoverYear; i++ {
-		switch i {
+	// Increase the passed days from the passed hijri months
+	passedMonths := h.Month - 1
+	for month := int64(1); month <= passedMonths; month++ {
+		passedDays += 29 + month%2
+	}
+
+	// Increase passed days using current hijri day
+	passedDays += h.Day
+
+	// Calculate Julian Days since Hijri epoch
+	jd := 1948438.5 + float64(passedDays)
+	return julianDaysToTime(jd)
+}
+
+func isLeapYear(year int64, pattern LeapYearsPattern) bool {
+	year = year % 30
+
+	switch pattern {
+	case Default:
+		switch year {
 		case 2, 5, 7, 10, 13, 16, 18, 21, 24, 26, 29:
-			nLeapDays++
+			return true
+		}
+
+	case Base15:
+		switch year {
+		case 2, 5, 7, 10, 13, 15, 18, 21, 24, 26, 29:
+			return true
+		}
+
+	case Fattimid:
+		switch year {
+		case 2, 5, 8, 10, 13, 16, 19, 21, 24, 27, 29:
+			return true
+		}
+
+	case HabashAlHasib:
+		switch year {
+		case 2, 5, 8, 11, 13, 16, 19, 21, 24, 27, 30:
+			return true
 		}
 	}
 
-	// If it was negative, put back the minus
-	if isNegativeYear {
-		leftoverYear *= -1
-		nLeapDays *= -1
-	}
-
-	nDaysLastYear := yearBy30*10631 + leftoverYear*354 + nLeapDays
-
-	// Calculate N days in this year, until the end of last month
-	M := month - 1
-	nDaysLastMonth := 0
-	for i := 1; i <= M; i++ {
-		if i%2 == 0 {
-			nDaysLastMonth += 29
-		} else {
-			nDaysLastMonth += 30
-		}
-	}
-
-	// Calculate Julian Days since 1 Muharram 1H
-	nDays := nDaysLastYear + nDaysLastMonth + day
-	jd := 1948438.5 + float64(nDays)
-
-	return jdToDate(jd)
+	return false
 }
