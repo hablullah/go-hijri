@@ -48,10 +48,10 @@ type HijriDate struct {
 	Pattern LeapYearsPattern
 }
 
-// ConvertDate converts normal Gregorian date to Hijri date. Since Hijri calendar is not proleptic
+// CreateHijriDate converts normal Gregorian date to Hijri date. Since Hijri calendar is not proleptic
 // (does not allow dates before its first date), any date before 16 July 622 CE (1 Muharram 1 H)
 // will make this method throws error.
-func ConvertDate(date time.Time, leapPattern LeapYearsPattern) (HijriDate, error) {
+func CreateHijriDate(date time.Time, leapPattern LeapYearsPattern) (HijriDate, error) {
 	// Convert date to UTC and strip times from the date
 	date = date.UTC()
 	date = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)

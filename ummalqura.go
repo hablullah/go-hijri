@@ -1,33 +1,49 @@
 package hijri
 
 import (
+	"errors"
 	"math"
 	"time"
 )
 
-// ToUmmAlQura converts Gregorian date to Umm al-Qura date.
-// Ported from Javascript code in https://www.staff.science.uu.nl/~gent0113/islam/ummalqura_converter.htm.
-// The date must be between 14 March 1937 and 16 November 2077.
-func ToUmmAlQura(date time.Time) (int, int, int, int) {
-	// We only need the date, so we just set the time to noon
-	date = time.Date(
-		date.Year(),
-		date.Month(),
-		date.Day(),
-		12, 0, 0, 0,
-		time.UTC)
+// UmmAlQuraDate is variant of Hijri date that used in Saudi Arabia.
+type UmmAlQuraDate struct {
+	Day     int64
+	Month   int64
+	Year    int64
+	Weekday time.Weekday
+}
 
-	// Calculate Julian Date (JD) and its Chronological Number (CJDN)
-	jd, _ := timeToJulianDays(date)
-	cjdn := int(jd)
+// CreateUmmAlQuraDate converts Gregorian date to Umm al-Qura date. It's ported from Javascript code by
+// R.H. van Gent from Utrecht University. The date must be between 14 March 1937 (1 Muharram 1356 H) and
+// 16 November 2077 (29 Dhu al-Hijjah 1500 H).
+func CreateUmmAlQuraDate(date time.Time) (UmmAlQuraDate, error) {
+	// Convert date to UTC and set the time to noon
+	date = date.UTC()
+	date = time.Date(date.Year(), date.Month(), date.Day(), 12, 0, 0, 0, time.UTC)
 
-	// From CJDN, we calculate Modified Chronological Julian Date Number (MCJDN).
-	// MCJDN is a modification of CJDN that used to simplify the notation.
-	// For more detail, check http://www.csgnetwork.com/julianmodifdateconv.html
+	// Make sure date within allowed scope
+	endOfUmmAlQura := time.Date(2077, 11, 16, 23, 59, 59, 0, time.UTC)
+	startOfUmmAlQura := time.Date(1937, 3, 14, 0, 0, 0, 0, time.UTC)
+	if date.After(endOfUmmAlQura) || date.Before(startOfUmmAlQura) {
+		return UmmAlQuraDate{}, errors.New("date is outside Umm al-Qura scope")
+	}
+
+	// Calculate Julian Days (JD)
+	jd, err := timeToJulianDays(date)
+	if err != nil {
+		return UmmAlQuraDate{}, err
+	}
+
+	// Convert Julian Days to its Chronological Number (CJDN)
+	cjdn := int64(jd)
+
+	// From CJDN, calculate Modified Chronological Julian Date Number (MCJDN). MCJDN is a modification of
+	// CJDN that used to simplify the notation. For more detail, check
+	// http://www.csgnetwork.com/julianmodifdateconv.html
 	mcjdn := cjdn - 2400000
 
-	// Get the start of lunations day according to MCJDN data from
-	// the Umm al-Qura calendar
+	// Get the start of lunations day according to MCJDN data from the Umm al-Qura calendar.
 	lunationIdx := -1
 	for i := 0; i < len(ummalQuraLunationMCJDN); i++ {
 		if ummalQuraLunationMCJDN[i] > mcjdn {
@@ -38,32 +54,37 @@ func ToUmmAlQura(date time.Time) (int, int, int, int) {
 
 	iln := float64(lunationIdx) + 16260
 	ii := math.Floor((iln - 1) / 12)
-	year := int(ii + 1)
-	month := int(iln - 12*ii)
+	year := int64(ii + 1)
+	month := int64(iln - 12*ii)
 	day := mcjdn - ummalQuraLunationMCJDN[lunationIdx-1] + 1
 
 	// Get weekday
 	weekday := (((cjdn + 1%7) + 7) % 7) + 1
 
-	return year, month, day, weekday
+	return UmmAlQuraDate{
+		Day:     day,
+		Month:   month,
+		Year:    year,
+		Weekday: time.Weekday(weekday),
+	}, nil
 }
 
-// FromUmmAlQura converts Umm al-Qura date to Gregorian date.
-func FromUmmAlQura(year, month, day int) time.Time {
+// ToGregorian convert Umm al-Qura date to Gregorian date using Golang standard time.
+func (uq UmmAlQuraDate) ToGregorian() time.Time {
 	// Get lunation index
-	ii := year - 1
-	iln := month + 12*ii
+	ii := uq.Year - 1
+	iln := uq.Month + 12*ii
 	lunationIdx := iln - 16260
 
-	// Get the Julian Date
-	mcjdn := day - 1 + ummalQuraLunationMCJDN[lunationIdx-1]
+	// Get the Julian Days
+	mcjdn := uq.Day - 1 + ummalQuraLunationMCJDN[lunationIdx-1]
 	cjdn := mcjdn + 2400000
 	jd := float64(cjdn) - 0.5
 
 	return julianDaysToTime(jd)
 }
 
-var ummalQuraLunationMCJDN = []int{
+var ummalQuraLunationMCJDN = []int64{
 	28607, 28636, 28665, 28695, 28724, 28754, 28783, 28813, 28843, 28872, 28901, 28931, 28960, 28990, 29019, 29049, 29078, 29108, 29137, 29167,
 	29196, 29226, 29255, 29285, 29315, 29345, 29375, 29404, 29434, 29463, 29492, 29522, 29551, 29580, 29610, 29640, 29669, 29699, 29729, 29759,
 	29788, 29818, 29847, 29876, 29906, 29935, 29964, 29994, 30023, 30053, 30082, 30112, 30141, 30171, 30200, 30230, 30259, 30289, 30318, 30348,

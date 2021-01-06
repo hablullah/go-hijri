@@ -10,7 +10,13 @@ import (
 
 var hijriTestData []TestData
 
-func init() { hijriTestData, _ = generateTestData("test/hijri.csv") }
+func init() {
+	var err error
+	hijriTestData, err = generateTestData("test/hijri.csv")
+	if err != nil {
+		panic(err)
+	}
+}
 
 func Test_Hijri_ConvertDate(t *testing.T) {
 	if len(hijriTestData) == 0 {
@@ -19,7 +25,7 @@ func Test_Hijri_ConvertDate(t *testing.T) {
 
 	for _, data := range hijriTestData {
 		gregorianDate, _ := time.Parse("2006-01-02", data.Gregorian)
-		hijriDate, _ := hijri.ConvertDate(gregorianDate, hijri.Default)
+		hijriDate, _ := hijri.CreateHijriDate(gregorianDate, hijri.Default)
 		strHijriDate := fmt.Sprintf("%04d-%02d-%02d",
 			hijriDate.Year,
 			hijriDate.Month,
@@ -54,7 +60,7 @@ func Test_Hijri_Bidirectional(t *testing.T) {
 	date := time.Date(622, 7, 16, 0, 0, 0, 0, time.UTC)
 	for date.Year() <= 2120 {
 		// Convert date to hijri
-		hijriDate, err := hijri.ConvertDate(date, hijri.Default)
+		hijriDate, err := hijri.CreateHijriDate(date, hijri.Default)
 		if err != nil {
 			date = date.AddDate(0, 0, 1)
 			continue
