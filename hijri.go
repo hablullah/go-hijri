@@ -1,16 +1,3 @@
-// Hijri or  Islamic calendar is a lunar calendar with a shorter year than ISO. Year 1
-// in the Islamic calendar began on July 16, 622 CE (Julian), thus Islamic years do not
-// begin at the same time as Julian years. This chronology is not proleptic, as it does
-// not allow dates before the first Islamic year.
-//
-// There are two basic forms of the Islamic calendar, the tabular and the observed. The
-// observed form cannot easily be used by computers as it relies on human observation of
-// the new moon. The tabular calendar, implemented here, is an arithmetical approximation
-// of the observed form that follows relatively simple rules.
-//
-// The tabular form of the calendar defines 12 months of alternately 30 and 29 days. The
-// last month is extended to 30 days in a leap year. Leap years occur according to a 30
-// year cycle.
 package hijri
 
 import (
@@ -40,7 +27,7 @@ const (
 	HabashAlHasib
 )
 
-// HijriDate is date that uses Islamic calendar system.
+// HijriDate is date that uses arithmetic Islamic calendar system.
 type HijriDate struct {
 	Day     int64
 	Month   int64
@@ -49,8 +36,7 @@ type HijriDate struct {
 }
 
 // CreateHijriDate converts normal Gregorian date to Hijri date. Since Hijri calendar is not proleptic
-// (does not allow dates before its first date), any date before 16 July 622 CE (1 Muharram 1 H)
-// will make this method throws error.
+// any date before 16 July 622 CE (1 Muharram 1 H) will make this method throws error.
 func CreateHijriDate(date time.Time, leapPattern LeapYearsPattern) (HijriDate, error) {
 	// Convert date to UTC and strip times from the date
 	date = date.UTC()
@@ -75,7 +61,7 @@ func CreateHijriDate(date time.Time, leapPattern LeapYearsPattern) (HijriDate, e
 	leftoverDays := islamicDays % 10631
 	leftoverYears := leftoverDays / 354
 
-	// Calculate the leftover days after years substracted
+	// Calculate the leftover days after years subtracted
 	leftoverDays = leftoverDays % 354
 
 	// Adjust leftover days based on leap years that happened within leftover years

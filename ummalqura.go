@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// UmmAlQuraDate is variant of Hijri date that used in Saudi Arabia.
+// UmmAlQuraDate is a date that uses astronomical-based Islamic calendar system that used in Saudi Arabia.
 type UmmAlQuraDate struct {
 	Day     int64
 	Month   int64
@@ -14,9 +14,7 @@ type UmmAlQuraDate struct {
 	Weekday time.Weekday
 }
 
-// CreateUmmAlQuraDate converts Gregorian date to Umm al-Qura date. It's ported from Javascript code by
-// R.H. van Gent from Utrecht University. The date must be between 14 March 1937 (1 Muharram 1356 H) and
-// 16 November 2077 (29 Dhu al-Hijjah 1500 H).
+// CreateUmmAlQuraDate converts Gregorian date to Umm al-Qura date.
 func CreateUmmAlQuraDate(date time.Time) (UmmAlQuraDate, error) {
 	// Convert date to UTC and set the time to noon
 	date = date.UTC()

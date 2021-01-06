@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/RadhiFadlillah/go-hijri"
+	"github.com/hablullah/go-hijri"
 )
 
 var ummAlQuraTestData []TestData
