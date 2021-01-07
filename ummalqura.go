@@ -4,6 +4,8 @@ import (
 	"errors"
 	"math"
 	"time"
+
+	"github.com/hablullah/go-juliandays"
 )
 
 // UmmAlQuraDate is a date that uses astronomical-based Islamic calendar system that used in Saudi Arabia.
@@ -28,7 +30,7 @@ func CreateUmmAlQuraDate(date time.Time) (UmmAlQuraDate, error) {
 	}
 
 	// Calculate Julian Days (JD)
-	jd, err := timeToJulianDays(date)
+	jd, err := juliandays.FromTime(date)
 	if err != nil {
 		return UmmAlQuraDate{}, err
 	}
@@ -79,7 +81,7 @@ func (uq UmmAlQuraDate) ToGregorian() time.Time {
 	cjdn := mcjdn + 2400000
 	jd := float64(cjdn) - 0.5
 
-	return julianDaysToTime(jd)
+	return juliandays.ToTime(jd)
 }
 
 var ummalQuraLunationMCJDN = []int64{

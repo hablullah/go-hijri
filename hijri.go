@@ -3,6 +3,8 @@ package hijri
 import (
 	"errors"
 	"time"
+
+	"github.com/hablullah/go-juliandays"
 )
 
 // LeapYearsPattern is patterns of leap years in the 30 year cycle.
@@ -43,7 +45,7 @@ func CreateHijriDate(date time.Time, leapPattern LeapYearsPattern) (HijriDate, e
 	date = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
 
 	// Calculate Julian Days
-	julianDays, err := timeToJulianDays(date)
+	julianDays, err := juliandays.FromTime(date)
 	if err != nil {
 		return HijriDate{}, err
 	}
@@ -134,7 +136,7 @@ func (h HijriDate) ToGregorian() time.Time {
 
 	// Calculate Julian Days since Hijri epoch
 	jd := 1948438.5 + float64(passedDays)
-	return julianDaysToTime(jd)
+	return juliandays.ToTime(jd)
 }
 
 func isLeapYear(year int64, pattern LeapYearsPattern) bool {
